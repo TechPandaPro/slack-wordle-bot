@@ -1,11 +1,6 @@
 import "dotenv/config";
-// import { SocketModeClient } from "@slack/socket-mode";
 import { App } from "@slack/bolt";
 import WordleGame from "./WordleGame";
-
-// const appToken = process.env.SLACK_APP_TOKEN
-
-// SocketModeClient;
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -22,8 +17,7 @@ app.command("/wordle", async (event) => {
   const upload = await app.client.filesUploadV2({
     // channel_id: "C095LGQCJKE",
     // content: game.createImage(),
-    file: Buffer.from(game.createImage(), "base64"),
-    // content: "hey there!",
+    file: game.createImage(),
     // title: "example text file",
     // file: Buffer.from(
     //   await (
@@ -35,7 +29,7 @@ app.command("/wordle", async (event) => {
     filename: "wordle.jpg",
   });
   // console.log(upload.files[0].files);
-  const files = upload.files[0].files;
+  const files = upload.files[0]?.files ?? [];
   let fileUrl: string;
   let fileId: string;
   if (files) {
@@ -43,8 +37,8 @@ app.command("/wordle", async (event) => {
     // console.log(file.filetype);
     // console.log(file.permalink);
     // console.log(file);
-    fileUrl = file.permalink ?? "";
-    fileId = file.id ?? "";
+    fileUrl = file?.permalink ?? "";
+    fileId = file?.id ?? "";
   } else {
     fileUrl = "";
     fileId = "";

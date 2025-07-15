@@ -12,7 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@slack/bolt": "^4.4.0",
-    "@slack/socket-mode": "^2.0.4",
+    "canvas": "^3.1.2",
     "dotenv": "^17.2.0"
   }
 }
