@@ -34,6 +34,8 @@ There are also some specific configurations required:
   - `files:write`
     - Allows the bot to upload the Wordle board images to Slack.
 
+You will need to install the app to your workspace ("Install App") after modifying these values.
+
 ### Installation
 
 _These instructions require that you have already installed [Git](https://git-scm.com/downloads) and [Node.js](https://nodejs.org/en/download/package-manager)._
