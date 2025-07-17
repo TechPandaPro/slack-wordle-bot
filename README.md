@@ -20,7 +20,7 @@ You can also run your own instance of the bot:
 
 First, you will need to [create a Slack app](https://api.slack.com/quickstart#creating).
 
-There are also some specific configurations required:
+There are also some specific configurations required. **Note that a [`slack_manifest.json`](slack_manifest.json) file is included for convenience.** However, if you prefer creating the app manually, you can do so:
 
 - Enable [Socket Mode](https://api.slack.com/apis/socket-mode#toggling)
   - This project was built without the expectation of a public HTTP Request URL, and thus the code architecture utilizes Socket Mode.
@@ -33,6 +33,8 @@ There are also some specific configurations required:
     - Allows the bot to create the `/wordle` command.
   - `files:write`
     - Allows the bot to upload the Wordle board images to Slack.
+- Create a `/wordle` command. [(Slack docs)](https://api.slack.com/interactivity/slash-commands#creating_commands)
+  - This is the command that will be used to start Wordle games. "Command" is the only pertinent field.
 
 You will need to install the app to your workspace ("Install App") after modifying these values.
 
