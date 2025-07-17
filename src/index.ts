@@ -75,7 +75,7 @@ app.message("", async (event) => {
 });
 
 app.command("/wordle", async (event) => {
-  await event.ack({ text: "Wordle incoming!" });
+  await event.ack();
 
   const wordleMessage = await app.client.chat.postMessage({
     channel: event.command.channel_id,
