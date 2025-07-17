@@ -1,3 +1,6 @@
 dist/
 node_modules/
 .env
+sqlite.db
+sqlite.db-shm
+sqlite.db-wal

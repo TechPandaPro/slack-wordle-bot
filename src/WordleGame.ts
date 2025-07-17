@@ -6,6 +6,7 @@ import { createCanvas } from "canvas";
  * @param word - The word to guess.
  */
 class WordleGame {
+  ts: string;
   canvasSize: number;
   gridSize: number;
   rectStrokeWidth: number;
@@ -13,17 +14,26 @@ class WordleGame {
   word: string;
   guesses: string[];
 
-  constructor(word: string) {
-    this.canvasSize = 350;
-    this.gridSize = 5;
-    this.gridGap = 5;
-    this.rectStrokeWidth = 2;
+  constructor(
+    ts: string,
+    canvasSize: number,
+    gridSize: number,
+    gridGap: number,
+    rectStrokeWidth: number,
+    word: string,
+    guesses: string[]
+  ) {
+    this.ts = ts;
+    this.canvasSize = canvasSize;
+    this.gridSize = gridSize;
+    this.gridGap = gridGap;
+    this.rectStrokeWidth = rectStrokeWidth;
 
     if (word.length !== this.gridSize)
-      throw new Error("Word must be 5 letters long");
+      throw new Error(`Word must be ${this.gridSize} letters long`);
 
     this.word = word.toLowerCase();
-    this.guesses = [];
+    this.guesses = guesses;
   }
 
   /**

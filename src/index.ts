@@ -1,6 +1,7 @@
 import "dotenv/config";
-import { App } from "@slack/bolt";
+import { App, subtype } from "@slack/bolt";
 import WordleGame from "./WordleGame";
+import WordleGameManager from "./WordleGameManager";
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -9,10 +10,58 @@ const app = new App({
   socketMode: true,
 });
 
+// app.message("test", async (event) => {
+//   console.log(event.message);
+// });
+
+const wordleGames = new WordleGameManager("sqlite.db");
+wordleGames.init();
+
+app.message("", async (event) => {
+  // event.body.event.subtype
+
+  const ts: string = event.message.ts;
+
+  // @ts-ignore - for some reason, @slack/bolt doesn't have this parameter in the typings
+  const threadTs: string | undefined = event.message.thread_ts;
+
+  if (!threadTs || ts === threadTs) return;
+
+  console.log("in thread.");
+
+  // console.log(wordleGames.get(threadTs));
+  // console.log(wordleGames.get("1"));
+
+  // console.log(event.event.type);
+  // console.log(event.event.subtype);
+  // console.log(event.message.subtype);
+
+  // console.log(event.event.ts);
+  // console.log(event.event.event_ts);
+
+  // console.log(event.event.subtype);
+
+  // // @ts-ignore
+  // console.log(event.event.thread_ts);
+
+  // // @ts-ignore
+  // console.log(event.message.thread_ts);
+
+  // if (event.message.subtype === "message_replied")
+  //   console.log(event.message.message);
+  // else console.log(event.message.subtype);
+});
+
 app.command("/wordle", async (event) => {
   const wordleWord = "earth";
 
-  const game = new WordleGame(wordleWord);
+  // const game = new WordleGame(wordleWord);
+
+  const game = wordleGames.create(String(Date.now()), wordleWord);
+
+  game.guesses.push("hello");
+
+  wordleGames.save(game);
 
   const upload = await app.client.filesUploadV2({
     // channel_id: "C095LGQCJKE",
@@ -26,7 +75,7 @@ app.command("/wordle", async (event) => {
     //     )
     //   ).arrayBuffer()
     // ),
-    filename: "wordle.jpg",
+    filename: "wordle.png",
   });
   // console.log(upload.files[0].files);
   const files = upload.files[0]?.files ?? [];
@@ -51,98 +100,57 @@ app.command("/wordle", async (event) => {
   // console.log("hey");
   await event.ack({ text: "Wordle incoming!" });
   setTimeout(async () => {
-    // await app.client.chat.postEphemeral({
-    await app.client.chat.postMessage({
-      // user: event.command.user_id,
+    const wordleMessage = await app.client.chat.postMessage({
       channel: event.command.channel_id,
       text: `<@${event.command.user_id}> Wordle`,
-      // text: `<@${event.command.user_id}> wants to play Wordle!`,
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            // @ts-ignore
             text: `<@${event.command.user_id}> wants to play Wordle!`,
-            // emoji: true,
           },
         },
-        {
-          type: "divider",
-        },
+      ],
+    });
+
+    if (!wordleMessage.ts) throw new Error("No ts found on Wordle reply");
+    if (!wordleMessage.channel)
+      throw new Error("No channel found on Wordle reply");
+
+    // const wordleMessageOptions: Parameters<typeof app.client.chat.update>[0] = {
+    const wordleMessageOptions: Parameters<typeof app.client.chat.update>[0] = {
+      ts: wordleMessage.ts,
+      channel: event.command.channel_id,
+      text: `<@${event.command.user_id}> Wordle`,
+      blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "This is a plain text section block.",
-            // emoji: true,
+            text: `<@${event.command.user_id}> wants to play Wordle!`,
           },
         },
         {
-          // type: "file",
-          // external_id: fileId,
-          // source: "remote",
           type: "image",
-          // slack_file: { url: fileUrl },
           slack_file: { id: fileId },
           alt_text: "Wordle game",
         },
-        // {
-        //   type: "image",
-        //   // image_url:
-        //   // "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/960px-Cat_November_2010-1a.jpg",
-        //   // image_url: game.createImage(),
-        //   image_url: fileUrl,
-        //   alt_text: "Wordle game",
-        // },
       ],
-      // response_type: "in_channel",
-    });
+    };
 
-    // await event.respond({
-    //   // text: `<@${event.command.user_id}> wants to play Wordle!`,
-    //   blocks: [
-    //     {
-    //       type: "section",
-    //       text: {
-    //         type: "mrkdwn",
-    //         // @ts-ignore
-    //         text: `<@${event.command.user_id}> wants to play Wordle! ${fileUrl}`,
-    //         // emoji: true,
-    //       },
-    //     },
-    //     {
-    //       type: "divider",
-    //     },
-    //     {
-    //       type: "section",
-    //       text: {
-    //         type: "mrkdwn",
-    //         text: "This is a plain text section block.",
-    //         // emoji: true,
-    //       },
-    //     },
-    //     {
-    //       // type: "file",
-    //       // external_id: fileId,
-    //       // source: "remote",
-    //       type: "image",
-    //       // slack_file: { url: fileUrl },
-    //       slack_file: { id: fileId },
-    //       alt_text: "Wordle game",
-    //     },
-    //     // {
-    //     //   type: "image",
-    //     //   // image_url:
-    //     //   // "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/960px-Cat_November_2010-1a.jpg",
-    //     //   // image_url: game.createImage(),
-    //     //   image_url: fileUrl,
-    //     //   alt_text: "Wordle game",
-    //     // },
-    //   ],
-    //   response_type: "in_channel",
-    // });
-  }, 5000);
+    // if (!wordleMessage.ts || !wordleMessage.channel)
+    //   throw new Error("No ts found on Wordle reply");
+
+    await app.client.chat.update(wordleMessageOptions);
+
+    await app.client.chat.postMessage({
+      channel: wordleMessage.channel ?? "",
+      thread_ts: wordleMessage.ts ?? "",
+      // reply_broadcast: true,
+      text: "Post your guesses in this thread! (Everyone can participate!)",
+    });
+  }, 1000);
   // await event.
   // await event.say("hey");
   // await event.
