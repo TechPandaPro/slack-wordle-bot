@@ -7,23 +7,31 @@ import { createCanvas } from "canvas";
  */
 class WordleGame {
   ts: string;
+  channelId: string;
+  userId: string;
   canvasSize: number;
   gridSize: number;
   rectStrokeWidth: number;
   gridGap: number;
   word: string;
+  printDate: string;
   guesses: string[];
 
   constructor(
     ts: string,
+    channelId: string,
+    userId: string,
     canvasSize: number,
     gridSize: number,
     gridGap: number,
     rectStrokeWidth: number,
     word: string,
+    printDate: string,
     guesses: string[]
   ) {
     this.ts = ts;
+    this.channelId = channelId;
+    this.userId = userId;
     this.canvasSize = canvasSize;
     this.gridSize = gridSize;
     this.gridGap = gridGap;
@@ -33,7 +41,25 @@ class WordleGame {
       throw new Error(`Word must be ${this.gridSize} letters long`);
 
     this.word = word.toLowerCase();
+    this.printDate = printDate;
     this.guesses = guesses;
+  }
+
+  /**
+   * Guess a word.
+   *
+   * @param word - The word to guess.
+   * @returns Whether or not the guess was correct.
+   */
+  guessWord(word: string): boolean {
+    if (!this.isActive())
+      throw new Error("Cannot guess while game is not active");
+
+    const guessedWord = word.toLowerCase();
+
+    this.guesses.push(guessedWord);
+
+    return guessedWord === this.word;
   }
 
   /**
@@ -55,6 +81,11 @@ class WordleGame {
     return !this.isWon() && this.guesses.length < 5;
   }
 
+  /**
+   * Generate an image representing the current game.
+   *
+   * @returns The buffer for the generated image.
+   */
   createImage() {
     const canvas = createCanvas(this.canvasSize, this.canvasSize);
     const ctx = canvas.getContext("2d");
@@ -67,15 +98,41 @@ class WordleGame {
 
     for (let i = 0; i < this.gridSize; i++) {
       const guessedWord = this.guesses[i];
-      const x = (letterSize + this.gridGap) * i + this.gridGap;
+      const y = (letterSize + this.gridGap) * i + this.gridGap;
 
       for (let j = 0; j < this.gridSize; j++) {
-        const y = (letterSize + this.gridGap) * j + this.gridGap;
+        const x = (letterSize + this.gridGap) * j + this.gridGap;
 
         // ctx.fillStyle = "#3A3A3B";
         // ctx.fillRect(x, y, letterSize, letterSize);
         if (guessedWord) {
-          rectFill("#3A3A3B", x, y, letterSize, letterSize);
+          const guessedLetter = guessedWord[j] ?? "";
+
+          let fillColor = "#3A3A3B";
+
+          if (guessedLetter === this.word[j]) fillColor = "#538D4E";
+          else if (
+            guessedWord
+              .slice(0, j + 1)
+              .split("")
+              .filter((letter) => guessedLetter === letter).length <=
+            this.word.split("").filter((letter) => guessedLetter === letter)
+              .length
+          )
+            fillColor = "#B59F3A";
+
+          rectFill(fillColor, x, y, letterSize, letterSize);
+
+          // console.log(guessedLetter);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = "bold 40px Arial";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(
+            guessedLetter.toUpperCase(),
+            x + letterSize / 2,
+            y + letterSize / 2
+          );
         } else {
           rectStroke(
             "#3A3A3B",

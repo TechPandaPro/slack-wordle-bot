@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { App, subtype } from "@slack/bolt";
-import WordleGame from "./WordleGame";
 import WordleGameManager from "./WordleGameManager";
+import WordleGame from "./WordleGame";
+import { fetchWordle } from "./wordleApi";
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -19,18 +20,62 @@ wordleGames.init();
 
 app.message("", async (event) => {
   // event.body.event.subtype
+  if (event.message.subtype) return;
 
-  const ts: string = event.message.ts;
-
-  // @ts-ignore - for some reason, @slack/bolt doesn't have this parameter in the typings
-  const threadTs: string | undefined = event.message.thread_ts;
-
+  const ts = event.message.ts;
+  const threadTs = event.message.thread_ts;
   if (!threadTs || ts === threadTs) return;
 
-  console.log("in thread.");
+  const channelId = event.message.channel;
 
-  // console.log(wordleGames.get(threadTs));
-  // console.log(wordleGames.get("1"));
+  // console.log("in thread.");
+
+  const wordleGame = wordleGames.get(threadTs, channelId);
+  if (!wordleGame || !wordleGame.isActive()) return;
+
+  const wordToGuess = event.message.text;
+  if (!wordToGuess || wordToGuess.length !== wordleGame.gridSize) return;
+
+  const isCorrect = wordleGame.guessWord(wordToGuess);
+  wordleGames.save(wordleGame);
+
+  await updateImage(wordleGame);
+
+  if (isCorrect) {
+    await app.client.chat.postMessage({
+      channel: wordleGame.channelId,
+      thread_ts: wordleGame.ts,
+      text: `Correct! Today's word is ${wordleGame.word.toUpperCase()}. Awesome job!`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Correct! Today's word is *${wordleGame.word.toUpperCase()}*. Awesome job!`,
+          },
+        },
+      ],
+      // reply_broadcast: true,
+    });
+  } else if (!wordleGame.isActive()) {
+    await app.client.chat.postMessage({
+      channel: wordleGame.channelId,
+      thread_ts: wordleGame.ts,
+      text: `Good attempt! Today's word is ${wordleGame.word.toUpperCase()}.`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Good attempt! Today's word is *${wordleGame.word.toUpperCase()}*.`,
+          },
+        },
+      ],
+      // reply_broadcast: true,
+    });
+  }
+
+  // const messageContent = event.message
 
   // console.log(event.event.type);
   // console.log(event.event.subtype);
@@ -53,29 +98,58 @@ app.message("", async (event) => {
 });
 
 app.command("/wordle", async (event) => {
-  const wordleWord = "earth";
+  await event.ack({ text: "Wordle incoming!" });
+
+  const wordleMessage = await app.client.chat.postMessage({
+    channel: event.command.channel_id,
+    text: `<@${event.command.user_id}> Wordle`,
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `<@${event.command.user_id}> wants to play Wordle!`,
+        },
+      },
+    ],
+  });
+
+  if (!wordleMessage.ts) throw new Error("No ts found on Wordle reply");
+  if (!wordleMessage.channel)
+    throw new Error("No channel found on Wordle reply");
+
+  const todayWordle = await fetchWordle();
+  if (!todayWordle) throw new Error("Could not fetch today's Wordle solution");
 
   // const game = new WordleGame(wordleWord);
 
-  const game = wordleGames.create(String(Date.now()), wordleWord);
+  const wordleGame = wordleGames.create(
+    wordleMessage.ts,
+    wordleMessage.channel,
+    event.command.user_id,
+    todayWordle.solution,
+    todayWordle.printDate
+  );
 
-  game.guesses.push("hello");
+  // wordleGame.guesses.push("hello");
 
-  wordleGames.save(game);
+  // wordleGames.save(wordleGame);
 
+  updateImage(wordleGame);
+
+  await app.client.chat.postMessage({
+    channel: wordleGame.channelId,
+    thread_ts: wordleGame.ts,
+    // reply_broadcast: true,
+    text: "Post your guesses in this thread! (Everyone can participate!)",
+  });
+});
+
+async function updateImage(wordleGame: WordleGame) {
   const upload = await app.client.filesUploadV2({
-    // channel_id: "C095LGQCJKE",
-    // content: game.createImage(),
-    file: game.createImage(),
-    // title: "example text file",
-    // file: Buffer.from(
-    //   await (
-    //     await fetch(
-    //       "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/960px-Cat_November_2010-1a.jpg"
-    //     )
-    //   ).arrayBuffer()
-    // ),
+    file: wordleGame.createImage(),
     filename: "wordle.png",
+    alt_text: "Wordle game",
   });
   // console.log(upload.files[0].files);
   const files = upload.files[0]?.files ?? [];
@@ -92,43 +166,55 @@ app.command("/wordle", async (event) => {
     fileUrl = "";
     fileId = "";
   }
-  // return;
 
-  console.log(fileId);
+  // console.log(upload.files[0]);
 
-  // console.log(event);
-  // console.log("hey");
-  await event.ack({ text: "Wordle incoming!" });
-  setTimeout(async () => {
-    const wordleMessage = await app.client.chat.postMessage({
-      channel: event.command.channel_id,
-      text: `<@${event.command.user_id}> Wordle`,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `<@${event.command.user_id}> wants to play Wordle!`,
-          },
-        },
-      ],
-    });
+  // console.log(fileId);
 
-    if (!wordleMessage.ts) throw new Error("No ts found on Wordle reply");
-    if (!wordleMessage.channel)
-      throw new Error("No channel found on Wordle reply");
+  // const file = await app.client.files.info({ file: fileId });
+  // console.log(file);
 
-    // const wordleMessageOptions: Parameters<typeof app.client.chat.update>[0] = {
+  // TODO: retry if file hasn't finished uploading yet
+
+  for (let i = 0; i < 10; i++) {
+    let success = false;
+
+    try {
+      await updateMessage();
+      success = true;
+    } catch {
+      success = false;
+      await wait(600);
+    }
+
+    if (success) {
+      break;
+    }
+  }
+
+  function wait(ms: number) {
+    return new Promise((resolve, reject) => setTimeout(resolve, ms));
+  }
+
+  // setTimeout(async () => {
+  //   try {
+  //     await updateMessage();
+  //   } catch {
+  //     console.log("error");
+  //   }
+  // }, 500);
+
+  async function updateMessage() {
     const wordleMessageOptions: Parameters<typeof app.client.chat.update>[0] = {
-      ts: wordleMessage.ts,
-      channel: event.command.channel_id,
-      text: `<@${event.command.user_id}> Wordle`,
+      ts: wordleGame.ts,
+      channel: wordleGame.channelId,
+      text: `<@${wordleGame.userId}> wants to play Wordle! (${wordleGame.printDate})`,
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `<@${event.command.user_id}> wants to play Wordle!`,
+            text: `<@${wordleGame.userId}> wants to play Wordle! (${wordleGame.printDate})`,
           },
         },
         {
@@ -139,43 +225,13 @@ app.command("/wordle", async (event) => {
       ],
     };
 
-    // if (!wordleMessage.ts || !wordleMessage.channel)
-    //   throw new Error("No ts found on Wordle reply");
-
     await app.client.chat.update(wordleMessageOptions);
-
-    await app.client.chat.postMessage({
-      channel: wordleMessage.channel ?? "",
-      thread_ts: wordleMessage.ts ?? "",
-      // reply_broadcast: true,
-      text: "Post your guesses in this thread! (Everyone can participate!)",
-    });
-  }, 1000);
-  // await event.
-  // await event.say("hey");
-  // await event.
-});
+  }
+}
 
 // app.event("connecting", () => console.log("Connecting to Slack..."));
 
 // app.event("connected", () => console.log("Connected to Slack"));
-
-// slackClient.on("slash_commands", async ({ body, ack }) => {
-//   console.log("received!");
-//   if (body.command === "/wordle") {
-//     // await ack({ text: "yay wordle!" });
-//     await ack({});
-//     // await
-//   }
-// });
-// slackClient.on("slash_commands", async ({ body, ack }) => {
-//   console.log("received!");
-//   if (body.command === "/wordle") {
-//     // await ack({ text: "yay wordle!" });
-//     await ack({});
-//     // await
-//   }
-// });
 
 (async () => {
   await app.start();

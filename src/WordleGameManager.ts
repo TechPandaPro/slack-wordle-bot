@@ -3,11 +3,14 @@ import WordleGame from "./WordleGame";
 
 interface RawWordleGame {
   ts: string;
+  channelId: string;
+  userId: string;
   canvasSize: number;
   gridSize: number;
   gridGap: number;
   rectStrokeWidth: number;
   word: string;
+  printDate: string;
   guesses: string; // a stringified JSON array of strings
 }
 
@@ -45,15 +48,19 @@ class WordleGameManager {
   init() {
     this.db.pragma("journal_mode = WAL");
     this.db
+      // ts TEXT PRIMARY KEY,
       .prepare(
         `
           CREATE TABLE IF NOT EXISTS games (
-            ts TEXT PRIMARY KEY,
+            ts TEXT,
+            channel_id TEXT,
+            user_id TEXT,
             canvas_size INTEGER,
             grid_size INTEGER,
             grid_gap INTEGER,
             rect_stroke_width INTEGER,
             word TEXT,
+            print_date TEXT,
             guesses TEXT -- a stringified JSON array of strings
           )
         `
@@ -68,7 +75,7 @@ class WordleGameManager {
    * @param ts - The timestamp of the game's Slack parent message.
    * @returns The retrieved WordleGame.
    */
-  get(ts: string) {
+  get(ts: string, channelId: string) {
     if (!this.initialized)
       throw new Error(
         "WordleGameManager must be initialized before performing operations"
@@ -84,12 +91,15 @@ class WordleGameManager {
       .prepare(
         // SELECT (ts, canvas_size, grid_size, grid_gap, rect_stroke_width, word, guesses)
         `
-          SELECT ts, canvas_size as canvasSize, grid_size as gridSize, grid_gap as gridGap, rect_stroke_width as rectStrokeWidth, word, guesses
+          SELECT ts, channel_id as channelId, user_id as userId, canvas_size as canvasSize, grid_size as gridSize, grid_gap as gridGap, rect_stroke_width as rectStrokeWidth, word, print_date as printDate, guesses
           FROM games
-          WHERE ts = ?
+          WHERE ts = @ts AND channel_id = @channelId
         `
       )
-      .get(ts) as RawWordleGame | undefined;
+      .get({
+        ts,
+        channelId,
+      }) as RawWordleGame | undefined;
 
     if (!row) return;
 
@@ -97,13 +107,18 @@ class WordleGameManager {
 
     const wordleGame = new WordleGame(
       row.ts,
+      row.channelId,
+      row.userId,
       row.canvasSize,
       row.gridGap,
       row.gridGap,
       row.rectStrokeWidth,
       row.word,
+      row.printDate,
       JSON.parse(row.guesses)
     );
+
+    this.cachedGames.push(wordleGame);
 
     return wordleGame;
   }
@@ -115,7 +130,13 @@ class WordleGameManager {
    * @param word - The correct word for this game.
    * @returns The new WordleGame.
    */
-  create(ts: string, word: string) {
+  create(
+    ts: string,
+    channelId: string,
+    userId: string,
+    word: string,
+    printDate: string
+  ) {
     if (!this.initialized)
       throw new Error(
         "WordleGameManager must be initialized before performing operations"
@@ -123,21 +144,27 @@ class WordleGameManager {
 
     const wordleGame = new WordleGame(
       ts,
+      channelId,
+      userId,
       this.defaultCanvasSize,
       this.defaultGridSize,
       this.defaultGridGap,
       this.defaultRectStrokeWidth,
       word,
+      printDate,
       []
     );
 
     const params: RawWordleGame = {
       ts: wordleGame.ts,
+      channelId: wordleGame.channelId,
+      userId: wordleGame.userId,
       canvasSize: wordleGame.canvasSize,
       gridSize: wordleGame.gridSize,
       gridGap: wordleGame.gridGap,
       rectStrokeWidth: wordleGame.rectStrokeWidth,
       word: wordleGame.word,
+      printDate: wordleGame.printDate,
       guesses: JSON.stringify(wordleGame.guesses),
     };
 
@@ -145,11 +172,13 @@ class WordleGameManager {
       .prepare(
         `
           INSERT INTO games
-          (ts, canvas_size, grid_size, grid_gap, rect_stroke_width, word, guesses)
-          VALUES (@ts, @canvasSize, @gridSize, @gridGap, @rectStrokeWidth, @word, @guesses)
+          (ts, channel_id, user_id, canvas_size, grid_size, grid_gap, rect_stroke_width, word, print_date, guesses)
+          VALUES (@ts, @channelId, @userId, @canvasSize, @gridSize, @gridGap, @rectStrokeWidth, @word, @printDate, @guesses)
         `
       )
       .run(params);
+
+    this.cachedGames.push(wordleGame);
 
     return wordleGame;
   }
@@ -168,11 +197,14 @@ class WordleGameManager {
 
     const params: RawWordleGame = {
       ts: wordleGame.ts,
+      channelId: wordleGame.channelId,
+      userId: wordleGame.userId,
       canvasSize: wordleGame.canvasSize,
       gridSize: wordleGame.gridSize,
       gridGap: wordleGame.gridGap,
       rectStrokeWidth: wordleGame.rectStrokeWidth,
       word: wordleGame.word,
+      printDate: wordleGame.printDate,
       guesses: JSON.stringify(wordleGame.guesses),
     };
 
@@ -182,13 +214,16 @@ class WordleGameManager {
           UPDATE games
           SET
             ts = @ts,
+            channel_id = @channelId,
+            user_id = @userId,
             canvas_size = @canvasSize,
             grid_size = @gridSize,
             grid_gap = @gridGap,
             rect_stroke_width = @rectStrokeWidth,
             word = @word,
+            print_date = @printDate,
             guesses = @guesses
-          WHERE ts = @ts
+          WHERE ts = @ts AND channel_id = @channelId
         `
       )
       .run(params);
