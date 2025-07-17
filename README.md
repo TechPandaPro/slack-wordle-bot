@@ -20,7 +20,7 @@ You can also run your own instance of the bot:
 
 First, you will need to [create a Slack app](https://api.slack.com/quickstart#creating).
 
-There are also some specific configurations required. **Note that a [`slack_manifest.json`](slack_manifest.json) file is included for convenience.** However, if you prefer creating the app manually, you can do so:
+There are also some specific configurations required. **Note that a [`slack_manifest.json`](slack_manifest.json) file is included for convenience.** However, if you prefer to create the app manually, you can do so:
 
 - Enable [Socket Mode](https://api.slack.com/apis/socket-mode#toggling)
   - This project was built without the expectation of a public HTTP Request URL, and thus the code architecture utilizes Socket Mode.
