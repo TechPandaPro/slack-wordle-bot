@@ -84,12 +84,8 @@ class WordleGameManager {
     const cachedGame = this.cachedGames.find((game) => game.ts === ts);
     if (cachedGame) return cachedGame;
 
-    // console.log(JSON.stringify(ts));
-    // console.log(typeof ts);
-
     const row = this.db
       .prepare(
-        // SELECT (ts, canvas_size, grid_size, grid_gap, rect_stroke_width, word, guesses)
         `
           SELECT ts, channel_id as channelId, user_id as userId, canvas_size as canvasSize, grid_size as gridSize, grid_gap as gridGap, rect_stroke_width as rectStrokeWidth, word, print_date as printDate, guesses
           FROM games

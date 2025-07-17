@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { App, subtype } from "@slack/bolt";
+import { App } from "@slack/bolt";
 import WordleGameManager from "./WordleGameManager";
 import WordleGame from "./WordleGame";
 import { fetchWordle } from "./wordleApi";
@@ -11,15 +11,10 @@ const app = new App({
   socketMode: true,
 });
 
-// app.message("test", async (event) => {
-//   console.log(event.message);
-// });
-
 const wordleGames = new WordleGameManager("sqlite.db");
 wordleGames.init();
 
 app.message("", async (event) => {
-  // event.body.event.subtype
   if (event.message.subtype) return;
 
   const ts = event.message.ts;
@@ -27,8 +22,6 @@ app.message("", async (event) => {
   if (!threadTs || ts === threadTs) return;
 
   const channelId = event.message.channel;
-
-  // console.log("in thread.");
 
   const wordleGame = wordleGames.get(threadTs, channelId);
   if (!wordleGame || !wordleGame.isActive()) return;
@@ -55,7 +48,6 @@ app.message("", async (event) => {
           },
         },
       ],
-      // reply_broadcast: true,
     });
   } else if (!wordleGame.isActive()) {
     await app.client.chat.postMessage({
@@ -71,30 +63,8 @@ app.message("", async (event) => {
           },
         },
       ],
-      // reply_broadcast: true,
     });
   }
-
-  // const messageContent = event.message
-
-  // console.log(event.event.type);
-  // console.log(event.event.subtype);
-  // console.log(event.message.subtype);
-
-  // console.log(event.event.ts);
-  // console.log(event.event.event_ts);
-
-  // console.log(event.event.subtype);
-
-  // // @ts-ignore
-  // console.log(event.event.thread_ts);
-
-  // // @ts-ignore
-  // console.log(event.message.thread_ts);
-
-  // if (event.message.subtype === "message_replied")
-  //   console.log(event.message.message);
-  // else console.log(event.message.subtype);
 });
 
 app.command("/wordle", async (event) => {
@@ -121,8 +91,6 @@ app.command("/wordle", async (event) => {
   const todayWordle = await fetchWordle();
   if (!todayWordle) throw new Error("Could not fetch today's Wordle solution");
 
-  // const game = new WordleGame(wordleWord);
-
   const wordleGame = wordleGames.create(
     wordleMessage.ts,
     wordleMessage.channel,
@@ -131,16 +99,11 @@ app.command("/wordle", async (event) => {
     todayWordle.printDate
   );
 
-  // wordleGame.guesses.push("hello");
-
-  // wordleGames.save(wordleGame);
-
   updateImage(wordleGame);
 
   await app.client.chat.postMessage({
     channel: wordleGame.channelId,
     thread_ts: wordleGame.ts,
-    // reply_broadcast: true,
     text: "Post your guesses in this thread! (Everyone can participate!)",
   });
 });
@@ -151,30 +114,11 @@ async function updateImage(wordleGame: WordleGame) {
     filename: "wordle.png",
     alt_text: "Wordle game",
   });
-  // console.log(upload.files[0].files);
+
   const files = upload.files[0]?.files ?? [];
-  let fileUrl: string;
   let fileId: string;
-  if (files) {
-    const file = files[0];
-    // console.log(file.filetype);
-    // console.log(file.permalink);
-    // console.log(file);
-    fileUrl = file?.permalink ?? "";
-    fileId = file?.id ?? "";
-  } else {
-    fileUrl = "";
-    fileId = "";
-  }
-
-  // console.log(upload.files[0]);
-
-  // console.log(fileId);
-
-  // const file = await app.client.files.info({ file: fileId });
-  // console.log(file);
-
-  // TODO: retry if file hasn't finished uploading yet
+  if (files) fileId = files[0]?.id ?? "";
+  else fileId = "";
 
   for (let i = 0; i < 10; i++) {
     let success = false;
@@ -195,14 +139,6 @@ async function updateImage(wordleGame: WordleGame) {
   function wait(ms: number) {
     return new Promise((resolve, reject) => setTimeout(resolve, ms));
   }
-
-  // setTimeout(async () => {
-  //   try {
-  //     await updateMessage();
-  //   } catch {
-  //     console.log("error");
-  //   }
-  // }, 500);
 
   async function updateMessage() {
     const wordleMessageOptions: Parameters<typeof app.client.chat.update>[0] = {
@@ -229,10 +165,7 @@ async function updateImage(wordleGame: WordleGame) {
   }
 }
 
-// app.event("connecting", () => console.log("Connecting to Slack..."));
-
-// app.event("connected", () => console.log("Connected to Slack"));
-
 (async () => {
   await app.start();
+  console.log("Started Slack app");
 })();

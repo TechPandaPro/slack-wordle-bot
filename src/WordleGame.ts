@@ -103,8 +103,6 @@ class WordleGame {
       for (let j = 0; j < this.gridSize; j++) {
         const x = (letterSize + this.gridGap) * j + this.gridGap;
 
-        // ctx.fillStyle = "#3A3A3B";
-        // ctx.fillRect(x, y, letterSize, letterSize);
         if (guessedWord) {
           const guessedLetter = guessedWord[j] ?? "";
 
@@ -123,7 +121,6 @@ class WordleGame {
 
           rectFill(fillColor, x, y, letterSize, letterSize);
 
-          // console.log(guessedLetter);
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.font = "bold 40px Arial";
@@ -145,10 +142,6 @@ class WordleGame {
         }
       }
     }
-
-    // ctx.font = "30px Impact";
-    // ctx.rotate(0.1);
-    // ctx.fillText(this.word, 50, 100);
 
     return canvas.toBuffer();
 
