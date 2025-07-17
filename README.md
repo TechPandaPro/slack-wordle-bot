@@ -24,7 +24,7 @@ There are also some specific configurations required:
 
 - Enable [Socket Mode](https://api.slack.com/apis/socket-mode#toggling)
   - This project was built without the expectation of a public HTTP Request URL, and thus the code architecture utilizes Socket Mode.
-- Add the following scopes (from within "OAuth & Permissions"):
+- Add the following scopes ("OAuth & Permissions" > "Bot Token Scopes"):
   - `channels:history`
     - Allows the bot to read guesses within threads.
   - `chat:write`

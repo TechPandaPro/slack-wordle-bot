@@ -4,6 +4,13 @@ import WordleGameManager from "./WordleGameManager";
 import WordleGame from "./WordleGame";
 import { fetchWordle } from "./wordleApi";
 
+if (!process.env.SLACK_SIGNING_SECRET)
+  throw new Error("SLACK_SIGNING_SECRET env variable is required");
+if (!process.env.SLACK_BOT_TOKEN)
+  throw new Error("SLACK_BOT_TOKEN env variable is required");
+if (!process.env.SLACK_APP_TOKEN)
+  throw new Error("SLACK_APP_TOKEN env variable is required");
+
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   token: process.env.SLACK_BOT_TOKEN,
